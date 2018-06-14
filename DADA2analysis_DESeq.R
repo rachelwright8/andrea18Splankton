@@ -49,7 +49,6 @@ fns
 
 
 # Trimming/Filtering -------
-
 fastqs <- fns[grepl(".fastq$", fns)]
 fastqs <- sort(fastqs) # Sort ensures forward/reverse reads are in same order
 fnFs <- fastqs[grepl("_R1", fastqs)] # Just the forward read files
@@ -91,7 +90,7 @@ if(!file_test("-d", filt_path)) dir.create(filt_path)
 filtFs <- file.path(filt_path, paste0(sample.names, "_F_filt.fastq.gz"))
 filtRs <- file.path(filt_path, paste0(sample.names, "_R_filt.fastq.gz"))
 
-# Filter (this takes awhile) ------
+# Filter and Trim (this takes awhile) ------
 out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, 
               truncLen=c(250,200),
               maxN=0, # DADA does not allow Ns
@@ -104,13 +103,20 @@ out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs,
 
 head(out)
 tail(out)
+class(out)
 
-#Note - lost more reads for worse samples (2,4) as would be expected. Also, lots more read data for 2016 samples compared to 2015
-#IF reads not truncated, many more reads tossed out due to failing quality thresholds in 2015 dataset
+# How many reads did we lose?
+summary(out)
+
+out_stats <- as.data.frame(out) %>% mutate(perc_reads_remaining = reads.out/reads.in*100)
+mean(out_stats$perc_reads_remaining) # we only lost 20% of the reads
+
+# Save the out file
+# save(out, file="outData.RData")
 
 # A word on Expected Errors vs a blanket quality threshold
 # Take a simple example: a read of length two with quality scores Q3 and Q40, corresponding to error probabilities P=0.5 and P=0.0001. The base with Q3 is much more likely to have an error than the base with Q40 (0.5/0.0001 = 5,000 times more likely), so we can ignore the Q40 base to a good approximation. Consider a large sample of reads with (Q3, Q40), then approximately half of them will have an error (because of the P=0.5 from the Q2 base). We express this by saying that the expected number of errors in a read with quality scores (Q3, Q40) is 0.5.
-#As this example shows, low Q scores (high error probabilities) dominate expected errors, but this information is lost by averaging if low Qs appear in a read with mostly high Q scores. This explains why expected errors is a much better indicator of read accuracy than average Q.
+# As this example shows, low Q scores (high error probabilities) dominate expected errors, but this information is lost by averaging if low Qs appear in a read with mostly high Q scores. This explains why expected errors is a much better indicator of read accuracy than average Q.
 
 # Learn Error Rates -----
 
