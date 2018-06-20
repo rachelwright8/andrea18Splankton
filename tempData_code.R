@@ -25,6 +25,7 @@ sub <- temp_data %>% filter(month=="6" & year=="15")
 
 # Plot temp over time
 ggplot(sub, aes(x = day, y = Max, group = site_name, color = site_name)) +
+  labs(x = "Day in June", y = "Max Temp °C")+
   geom_line()+
   geom_point()+
   theme_bw()
