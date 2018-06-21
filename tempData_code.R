@@ -37,6 +37,9 @@ str(ggplot_shapescolors$shapes)
 ggplot(sub, aes(x = day, y = Max, group = site_name, color = site_name)) +
   geom_line(size=1) +
   geom_point(aes(shape=factor(ggplot_shapescolors$shapes)), size = 3) +
+  labs(x = "Day in June", y = "Max Temp °C")+
+  geom_line()+
+  geom_point()+
   theme_bw()
 
 # Plot temp over time - color by inshore/offshore, symbol by site
