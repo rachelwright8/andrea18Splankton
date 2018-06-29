@@ -1,6 +1,7 @@
 library(Rmisc) # for summarySE
 library(tidyverse) # for readr, dplyr, ggplot...
 library(lubridate) # for dealing with dates and times (e.g., hms)
+library(ggridges) # for ridge plots
 
 setwd("andreas18ssequencing/")
 
@@ -8,21 +9,35 @@ setwd("andreas18ssequencing/")
 d0 <- read_csv("newTimes.csv")
 head(d0)
 
-# plot lycor input over time
+# get rid of spaces in site names
+d0$siteName <- gsub(" ", "", d0$siteName)
+summary(d0)
+
+# plot licor input over time
 d0 %>% ggplot(aes(x = localTime, y = licorData, group = siteType, color = siteType)) +
   geom_line()+
   facet_grid(siteName ~ .)+
   theme_bw()
 
 # Get rid of the first 5 measurements of each depth for each site (time during descent)----
-d <- d0 %>% group_by(siteName,depth) %>% slice(5:n())
+d1 <- d0 %>% group_by(siteName,depth) %>% slice(5:n())
+head(d1)
+
+# Gid rid of measurements at Bastimentos South at 6 ft after 12:35 (meter was taken out but not turned off)
+endBS6 <- hms("12:35:00")
+
+d <- d1 %>%
+  filter(!(siteName=="BASTIMSOUTH" & depth==6 & hms(localTime)>endBS6))
+head(d)
 
 # Subset for values within 2 standard deviations of the mean for each depth and site ----
 sd_subset <- d %>%
-  filter(cloudy=="N") %>%
+  # filter(cloudy=="N") %>%
   group_by(siteName,depth) %>%
   mutate(mean = mean(licorData), sd = sd(licorData)) %>%
   filter(licorData > mean-(2*sd), licorData < mean+(2*sd) )
+
+head(sd_subset)
 
 sd_subset %>% ggplot(aes(x = localTime, y = licorData, group = siteType, color = siteType)) +
   geom_line()+
@@ -36,6 +51,25 @@ sd_subset %>% ggplot(aes(x = siteName, y = licorData)) +
   geom_boxplot(aes(x = siteName, y = licorData, color = depth)) +
   geom_jitter(width = 0.4, size = 0.1) +
   theme_bw()
+
+# Ridge plot
+sd_subset %>%
+  ggplot(aes(x = licorData, y = siteName, fill = paste(siteType,depth))) +
+  geom_density_ridges(jittered_points=TRUE, scale = .95, rel_min_height = .01,
+                      point_shape = "|", point_size = 2, size = 0.1,
+                      position = position_points_jitter(height = 0)) +
+  # scale_fill_manual(values=c("tomato2", "salmon", "royalblue1", "royalblue4", "deepskyblue1"))+
+  theme_ridges(center = T)
+
+
+# sd_subset %>%
+#   ggplot(aes(x = localTime, y = licorData, fill = paste(siteType,depth))) +
+#   geom_density_ridges(jittered_points=TRUE, scale = .95, rel_min_height = .01,
+#                       point_shape = "|", point_size = 2, size = 0.1,
+#                       position = position_points_jitter(height = 0)) +
+#   scale_fill_manual(values=c("tomato2", "salmon", "royalblue1", "royalblue4", "deepskyblue1"))+
+#   theme_ridges(center = T)
+
 
 # plot each site type
 sd_subset %>% ggplot(aes(x = siteType, y = licorData)) +

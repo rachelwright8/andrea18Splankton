@@ -43,12 +43,10 @@ head(sam_info)
 
 # Load fastq files (sequencing samples) -------
 # Set path to unzipped, renamed fastq files
-path <- "Plankton_data/"
+path <- "Plankton_data/" # set the path to where the fastq files are. This may be an external harddrive. It dosn't have to be your working directory. It will look something like this... "/Volumes/ExtDrive/Folder1/"
 fns <- list.files(path)
 fns
 
-
-# Trimming/Filtering -------
 fastqs <- fns[grepl(".fastq$", fns)]
 fastqs <- sort(fastqs) # Sort ensures forward/reverse reads are in same order
 fnFs <- fastqs[grepl("_R1", fastqs)] # Just the forward read files
@@ -96,7 +94,7 @@ out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs,
               maxN=0, # DADA does not allow Ns
               maxEE=c(1,1), # allow 1 expected errors, where EE = sum(10^(-Q/10)); more conservative, model converges
               truncQ=2, # truncate reads at the first instance of a quality score less than or equal to 2
-              #trimLeft=c(20,21), #N nucleotides to remove from the start of each read... I think these have already been renoved for Andrea's 18S samples
+              trimLeft=c(24,19), #N nucleotides to remove from the start of each read to remove sequencing primers
               rm.phix=TRUE, # remove reads matching phiX genome
               matchIDs=TRUE, # enforce matching between id-line sequence identifiers of F and R reads
               compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
@@ -110,6 +108,7 @@ summary(out)
 
 out_stats <- as.data.frame(out) %>% mutate(perc_reads_remaining = reads.out/reads.in*100)
 mean(out_stats$perc_reads_remaining) # we only lost 20% of the reads
+sum(out_stats)
 
 # Save the out file
 # save(out, file="outData.RData")
