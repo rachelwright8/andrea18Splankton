@@ -3,7 +3,7 @@ library(tidyverse) # for readr, dplyr, ggplot...
 library(lubridate) # for dealing with dates and times (e.g., hms)
 library(ggridges) # for ridge plots
 
-setwd("~/Desktop/Plankton/andreas18Splankton/")
+setwd("~/Desktop/andreas18ssequencing/")
 
 # Load the file
 d0 <- read_csv("newTimes.csv")
