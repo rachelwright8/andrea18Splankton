@@ -1,14 +1,19 @@
-install.packages("ggridges")
+# install.packages("ggridges") # you only need to do this once
 library(Rmisc) # for summarySE
 library(tidyverse) # for readr, dplyr, ggplot...
 library(lubridate) # for dealing with dates and times (e.g., hms)
 library(ggridges) # for ridge plots
+library(gridExtra) # for plotting multiple plots in a single frame
 
-setwd("~/Desktop/Plankton/andrea18SPlankton/")
+setwd("~/Desktop/andreas18ssequencing/")
 
 # Load the file
 d0 <- read_csv("newTimes.csv")
 head(d0)
+summary(d0)
+
+# make depth a factor, not a continuous variable
+d0$depth <- as.factor(d0$depth)
 
 # get rid of spaces in site names
 d0$siteName <- gsub(" ", "", d0$siteName)
@@ -20,7 +25,7 @@ d0 %>% ggplot(aes(x = localTime, y = licorData, group = siteType, color = siteTy
   facet_grid(siteName ~ .)+
   theme_bw()
 
-# Get rid of the first 4 measurements of each depth for each site (time during descent)----
+# Get rid of the first 5 measurements of each depth for each site (time during descent)----
 d1 <- d0 %>% group_by(siteName,depth) %>% slice(5:n())
 head(d1)
 
@@ -34,79 +39,102 @@ head(d2)
 # Get rid of any measurements before 11 to 2
 dstart <- hms("11:00:00")
 dend <- hms("14:00:00")
+
 d3 <- d2 %>%
-  filter(!(hms(localTime)<dstart))
-d4 <- d3 %>%
-  filter(!(hms(localTime)>dend))
-head(d4)
-tail(d4)
-# Subset for values within 2 standard deviations of the mean for each depth and site ----
-# SD and mean the same for all depths and sites instead of different for each one
-sd_subset <- d4 %>%
-  # filter(cloudy=="N") %>%
+  filter(cloudy=="N") %>% # try analysis with and without this line. Removing "cloudy" points removes 1198 observations
+  filter(!(hms(localTime)<dstart), 
+         !(hms(localTime)>dend) )
+
+
+table(as.factor(d2$cloudy))
+# N    Y
+# 801 1198
+table(as.factor(d3$cloudy))
+# N 
+# 520
+
+# Times look good?
+# before filtering ...
+summary(hms(d2$localTime))
+# min is 955 am , max is 238 pm
+
+# after filtering...
+summary(hms(d3$localTime))
+# min time is 11H 0M 4S
+# max time is 13H 59M 50S
+# looks good!
+
+# Subset for values within N (1? 2?) standard deviations of the mean for each depth and site ----
+sd_subset <- d3 %>%
+  ungroup() %>% # this line is important! the data were previously grouped, so we must ungroup before grouping again :)
   group_by(siteName,depth) %>%
-  mutate(mean = mean(licorData), sd = sd(licorData)) # %>%
-  #filter(licorData > mean-(1*sd), licorData < mean+(1*sd) )
+  mutate(mean = mean(licorData), sd = sd(licorData))  %>%
+  filter(licorData > mean-(1*sd), licorData < mean+(1*sd) )
 
 head(sd_subset)
-tail(sd_subset)
-d4%>%group_by(siteName)%>%group_by(depth)
+summary(sd_subset)
 
 sd_subset %>% ggplot(aes(x = localTime, y = licorData, group = siteType, color = siteType)) +
   geom_line()+
   facet_grid(siteName ~ .)+
   theme_bw()
 
-str(sd_subset)
-sd_subset$depth <- as.factor(sd_subset$depth)
-
 sd_subset %>% ggplot(aes(x = siteName, y = licorData)) +
   geom_boxplot(aes(x = siteName, y = licorData, color = depth)) +
   geom_jitter(width = 0.4, size = 0.1) +
   theme_bw()
 
-# Ridge plot
-d4 %>%
+# Ridge plot for all data (not subset by standard deviaton)
+plot_all_data <- d3 %>%
   ggplot(aes(x = licorData, y = siteName, fill = paste(siteType,depth))) +
+  ggtitle("Plot All Data")+
   geom_density_ridges(jittered_points=TRUE, scale = .95, rel_min_height = .01,
                       point_shape = "|", point_size = 2, size = 0.1,
                       position = position_points_jitter(height = 0)) +
   # scale_fill_manual(values=c("tomato2", "salmon", "royalblue1", "royalblue4", "deepskyblue1"))+
   theme_ridges(center = T)
 
-
-sd_subset %>%
-   ggplot(aes(x = localTime, y = licorData, fill = paste(siteType,depth))) +
+# Ridge plot for data subset by standard devistion
+plot_sd_subset <- sd_subset %>%
+   ggplot(aes(x = licorData, y = siteName, fill = paste(siteType,depth))) +
+   ggtitle("Plot Data Subset by SD")+
    geom_density_ridges(jittered_points=TRUE, scale = .95, rel_min_height = .01,
                        point_shape = "|", point_size = 2, size = 0.1,
                        position = position_points_jitter(height = 0)) +
-   scale_fill_manual(values=c("tomato2", "salmon", "royalblue1", "royalblue4", "deepskyblue1"))+
+   # scale_fill_manual(values=c("tomato2", "salmon", "royalblue1", "royalblue4", "deepskyblue1"))+
    theme_ridges(center = T)
 
+# plot both side by side
+grid.arrange(plot_all_data, plot_sd_subset, ncol = 2)
+# Based on this, I feel like we shouldn't subset based on standard deviation. It doesn't solve our problem sites and it emphasizes differences in our good sites that maybe shouldn't exist
+
+# so I'm going to finalize "d3" as the "licor_data" for downstream analyses...for now ;)
+licor_data <- d3
 
 # plot each site type
-sd_subset %>% ggplot(aes(x = siteType, y = licorData)) +
+licor_data %>% ggplot(aes(x = siteType, y = licorData)) +
   geom_boxplot(aes(x = siteType, y = licorData, fill = depth)) +
-  # geom_jitter(width = 0.4, size = 0.1) +
+  geom_jitter(width = 0.4, size = 0.1) +
   theme_bw()
 
-sd_subset %>% ggplot(aes(x = depth, y = licorData)) +
+licor_data %>% ggplot(aes(x = depth, y = licorData)) +
   geom_boxplot(aes(x = depth, y = licorData, fill = siteType)) +
+  # geom_jitter(width = 0.4, size = 0.1) +
   scale_fill_manual(values = c("salmon", "royalblue4")) +
   theme_bw()
 
-sd_subset %>% ggplot(aes(x = siteType, y = licorData)) +
+licor_data %>% ggplot(aes(x = siteType, y = licorData)) +
   geom_boxplot(aes(x = siteType, y = licorData, fill = siteType)) +
   scale_fill_manual(values = c("salmon", "royalblue4")) +
   theme_bw()
 
 # plot mean ± standard deviation for each site and depth
-sumstats <- sd_subset %>% 
+sumstats <- licor_data %>%
+  ungroup() %>%
   filter(cloudy=="N") %>%
   summarySE("licorData", c("siteName","depth"))
 sumstats
 str(sumstats)
-sumstats$depth <- as.factor(sumstats$depth) # recast depth as factor instead of integer
 
 ggplot(data = sumstats, 
        aes(x = depth,
@@ -115,7 +143,7 @@ ggplot(data = sumstats,
            ymax = licorData+sd,       
            fill = siteName)) +
   geom_bar(position="dodge", stat = "identity") + 
-  geom_errorbar(position = position_dodge(), colour="black") +
+  geom_errorbar(position = position_dodge(1), colour="black", width = 0.3, size = 0.5) +
   theme_bw()
 
 ggplot(data = sumstats, 
@@ -125,7 +153,7 @@ ggplot(data = sumstats,
            ymax = licorData+sd,       
            fill = depth)) +
   geom_bar(position="dodge", stat = "identity") + 
-  geom_errorbar(position = position_dodge(), colour="black") +
+  geom_errorbar(position = position_dodge(1), colour="black", width = 0.3, size = 0.5) +
   theme_bw()
 
 
