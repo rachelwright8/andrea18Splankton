@@ -2,7 +2,7 @@
 library(Rmisc) # for summarySE
 library(tidyverse) # for readr, dplyr, ggplot...
 library(lubridate) # for dealing with dates and times (e.g., hms)
-library(ggridges) # for ridge plots
+library(ggridges) # for ridge plot
 library(gridExtra) # for plotting multiple plots in a single frame
 
 setwd("~/Desktop/andreas18ssequencing/")
