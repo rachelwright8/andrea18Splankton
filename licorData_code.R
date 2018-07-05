@@ -216,7 +216,7 @@ grid.arrange(plot_all_data, plot_sd_subset, ncol = 2)
 # Based on this, I feel like we shouldn't subset based on standard deviation. It doesn't solve our problem sites and it emphasizes differences in our good sites that maybe shouldn't exist
 
 # Subset for depths at each site?
-# 
+#
 # fiv <- d [ which(d$depth=='5'), ]
 # six <- d [ which(d$depth== '6'), ]
 # eig <- d [ which(d$depth== '8'), ]
