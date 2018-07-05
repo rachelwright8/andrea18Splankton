@@ -3,6 +3,9 @@ library(Rmisc) # for summarySE
 library(tidyverse) # for readr, dplyr, ggplot...
 library(lubridate) # for dealing with dates and times (e.g., hms)
 library(ggridges) # for ridge plot
+install.packages("MCMCglmm") # you only need to run this once
+library(MCMCglmm) # for MCMCglmm stats
+install.packages("gridExtra") # you only need to run this once
 library(gridExtra) # for plotting multiple plots in a single frame
 
 setwd("~/Desktop/andreas18ssequencing/")
@@ -25,8 +28,10 @@ d0 %>% ggplot(aes(x = localTime, y = licorData, group = siteType, color = siteTy
   facet_grid(siteName ~ .)+
   theme_bw()
 
-# Get rid of the first 5 measurements of each depth for each site (time during descent)----
-d1 <- d0 %>% group_by(siteName,depth) %>% slice(5:n())
+# Get rid of the first 4 measurements of each depth for each site (time during descent)----
+d1 <- d0 %>% 
+  group_by(siteName,depth) %>% 
+  slice(5:n())
 head(d1)
 
 # Gid rid of measurements at Bastimentos South at 6 ft after 12:35 (meter was taken out but not turned off)
@@ -41,7 +46,7 @@ dstart <- hms("11:00:00")
 dend <- hms("14:00:00")
 
 d3 <- d2 %>%
-  filter(cloudy=="N") %>% # try analysis with and without this line. Removing "cloudy" points removes 1198 observations
+  # filter(cloudy=="N") %>% # try analysis with and without this line. Removing "cloudy" points removes 1198 observations
   filter(!(hms(localTime)<dstart), 
          !(hms(localTime)>dend) )
 
@@ -85,7 +90,7 @@ sd_subset %>% ggplot(aes(x = siteName, y = licorData)) +
   theme_bw()
 
 # Ridge plot for all data (not subset by standard deviaton)
-plot_all_data <- d3 %>%
+plot_all_,data <- d3 %>%
   ggplot(aes(x = licorData, y = siteName, fill = paste(siteType,depth))) +
   ggtitle("Plot All Data")+
   geom_density_ridges(jittered_points=TRUE, scale = .95, rel_min_height = .01,
@@ -127,6 +132,38 @@ licor_data %>% ggplot(aes(x = siteType, y = licorData)) +
   geom_boxplot(aes(x = siteType, y = licorData, fill = siteType)) +
   scale_fill_manual(values = c("salmon", "royalblue4")) +
   theme_bw()
+
+# stats for inshore vs offshore -----
+set.seed(1)
+model1 <- MCMCglmm(licorData ~ siteType,
+                   random = ~depth,
+                   data = licor_data)
+summary(model1)
+#               post.mean l-95% CI u-95% CI eff.samp pMCMC   
+# (Intercept)   516.103  296.717  728.757     1000 0.002 **
+# siteTypeOR      9.958  -32.731   54.523     1000 0.676 
+
+set.seed(1)
+model2 <- MCMCglmm(licorData ~ siteType,
+                   random = ~depth+siteName,
+                   data = licor_data)
+summary(model2)
+#                 post.mean l-95% CI u-95% CI eff.samp pMCMC
+# (Intercept)     397.5   -186.2   1031.0     1000 0.154
+# siteTypeOR      305.2   -462.5   1121.6     1000 0.374
+
+
+set.seed(1)
+
+model3 <- MCMCglmm(licorData ~ siteType+depth,
+                   random = ~siteName,
+                   data = licor_data)
+summary(model3)
+
+model4 <- MCMCglmm(licorData ~ siteType+as.numeric(depth),
+                   random = ~siteName,
+                   data = licor_data)
+summary(model4)
 
 # plot mean ± standard deviation for each site and depth
 sumstats <- licor_data %>%
