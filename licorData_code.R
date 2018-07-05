@@ -198,7 +198,7 @@ ggplot(data = sumstats,
 # test code below
 
 # Subset for depths at each site?
-# 
+#
 # fiv <- d [ which(d$depth=='5'), ]
 # six <- d [ which(d$depth== '6'), ]
 # eig <- d [ which(d$depth== '8'), ]
