@@ -46,17 +46,13 @@ dstart <- hms("11:00:00")
 dend <- hms("14:00:00")
 
 d3 <- d2 %>%
-  # filter(cloudy=="N") %>% # try analysis with and without this line. Removing "cloudy" points removes 1198 observations
+  filter(cloudy=="N") %>% # try analysis with and without this line. Removing "cloudy" points removes 1198 observations
   filter(!(hms(localTime)<dstart), 
          !(hms(localTime)>dend) )
 
 
 table(as.factor(d2$cloudy))
-# N    Y
-# 801 1198
 table(as.factor(d3$cloudy))
-# N 
-# 520
 
 # Times look good?
 # before filtering ...
@@ -69,52 +65,19 @@ summary(hms(d3$localTime))
 # max time is 13H 59M 50S
 # looks good!
 
-# Subset for values within N (1? 2?) standard deviations of the mean for each depth and site ----
-sd_subset <- d3 %>%
-  ungroup() %>% # this line is important! the data were previously grouped, so we must ungroup before grouping again :)
+# Mine out the top 20 values for each site and depth
+head(d3)
+
+top20 <- d3 %>%
+  ungroup() %>%
   group_by(siteName,depth) %>%
-  mutate(mean = mean(licorData), sd = sd(licorData))  %>%
-  filter(licorData > mean-(1*sd), licorData < mean+(1*sd) )
+  top_n(n = 20, wt = licorData)
 
-head(sd_subset)
-summary(sd_subset)
+head(top20)
+summary(top20)
 
-sd_subset %>% ggplot(aes(x = localTime, y = licorData, group = siteType, color = siteType)) +
-  geom_line()+
-  facet_grid(siteName ~ .)+
-  theme_bw()
-
-sd_subset %>% ggplot(aes(x = siteName, y = licorData)) +
-  geom_boxplot(aes(x = siteName, y = licorData, color = depth)) +
-  geom_jitter(width = 0.4, size = 0.1) +
-  theme_bw()
-
-# Ridge plot for all data (not subset by standard deviaton)
-plot_all_,data <- d3 %>%
-  ggplot(aes(x = licorData, y = siteName, fill = paste(siteType,depth))) +
-  ggtitle("Plot All Data")+
-  geom_density_ridges(jittered_points=TRUE, scale = .95, rel_min_height = .01,
-                      point_shape = "|", point_size = 2, size = 0.1,
-                      position = position_points_jitter(height = 0)) +
-  # scale_fill_manual(values=c("tomato2", "salmon", "royalblue1", "royalblue4", "deepskyblue1"))+
-  theme_ridges(center = T)
-
-# Ridge plot for data subset by standard devistion
-plot_sd_subset <- sd_subset %>%
-   ggplot(aes(x = licorData, y = siteName, fill = paste(siteType,depth))) +
-   ggtitle("Plot Data Subset by SD")+
-   geom_density_ridges(jittered_points=TRUE, scale = .95, rel_min_height = .01,
-                       point_shape = "|", point_size = 2, size = 0.1,
-                       position = position_points_jitter(height = 0)) +
-   # scale_fill_manual(values=c("tomato2", "salmon", "royalblue1", "royalblue4", "deepskyblue1"))+
-   theme_ridges(center = T)
-
-# plot both side by side
-grid.arrange(plot_all_data, plot_sd_subset, ncol = 2)
-# Based on this, I feel like we shouldn't subset based on standard deviation. It doesn't solve our problem sites and it emphasizes differences in our good sites that maybe shouldn't exist
-
-# so I'm going to finalize "d3" as the "licor_data" for downstream analyses...for now ;)
-licor_data <- d3
+# let's look at the top20 values 
+licor_data <- top20
 
 # plot each site type
 licor_data %>% ggplot(aes(x = siteType, y = licorData)) +
@@ -133,33 +96,39 @@ licor_data %>% ggplot(aes(x = siteType, y = licorData)) +
   scale_fill_manual(values = c("salmon", "royalblue4")) +
   theme_bw()
 
+licor_data %>%
+  ggplot(aes(x = licorData, y = siteName, fill = paste(siteType,depth))) +
+  ggtitle("Plot All Data")+
+  geom_density_ridges(jittered_points=TRUE, scale = .95, rel_min_height = .01,
+                      point_shape = "|", point_size = 2, size = 0.1,
+                      position = position_points_jitter(height = 0)) +
+  # scale_fill_manual(values=c("tomato2", "salmon", "royalblue1", "royalblue4", "deepskyblue1"))+
+  theme_ridges(center = T)
+
+
 # stats for inshore vs offshore -----
 set.seed(1)
 model1 <- MCMCglmm(licorData ~ siteType,
                    random = ~depth,
                    data = licor_data)
 summary(model1)
-#               post.mean l-95% CI u-95% CI eff.samp pMCMC   
-# (Intercept)   516.103  296.717  728.757     1000 0.002 **
-# siteTypeOR      9.958  -32.731   54.523     1000 0.676 
+
+
 
 set.seed(1)
 model2 <- MCMCglmm(licorData ~ siteType,
                    random = ~depth+siteName,
                    data = licor_data)
 summary(model2)
-#                 post.mean l-95% CI u-95% CI eff.samp pMCMC
-# (Intercept)     397.5   -186.2   1031.0     1000 0.154
-# siteTypeOR      305.2   -462.5   1121.6     1000 0.374
 
 
 set.seed(1)
-
 model3 <- MCMCglmm(licorData ~ siteType+depth,
                    random = ~siteName,
                    data = licor_data)
 summary(model3)
 
+set.seed(1)
 model4 <- MCMCglmm(licorData ~ siteType+as.numeric(depth),
                    random = ~siteName,
                    data = licor_data)
@@ -194,8 +163,57 @@ ggplot(data = sumstats,
   theme_bw()
 
 
+
+
+
+
+
 # STOP ------
 # test code below
+
+# Subset for values within N (1? 2?) standard deviations of the mean for each depth and site ----
+sd_subset <- d3 %>%
+  ungroup() %>% # this line is important! the data were previously grouped, so we must ungroup before grouping again :)
+  group_by(siteName,depth) %>%
+  mutate(mean = mean(licorData), sd = sd(licorData))  %>%
+  filter(licorData > mean-(1*sd), licorData < mean+(1*sd) )
+
+head(sd_subset)
+summary(sd_subset)
+
+sd_subset %>% ggplot(aes(x = localTime, y = licorData, group = siteType, color = siteType)) +
+  geom_line()+
+  facet_grid(siteName ~ .)+
+  theme_bw()
+
+sd_subset %>% ggplot(aes(x = siteName, y = licorData)) +
+  geom_boxplot(aes(x = siteName, y = licorData, color = depth)) +
+  geom_jitter(width = 0.4, size = 0.1) +
+  theme_bw()
+
+# Ridge plot for all data (not subset by standard deviaton)
+plot_all_,data <- d3 %>%
+  ggplot(aes(x = licorData, y = siteName, fill = paste(siteType,depth))) +
+  ggtitle("Plot All Data")+
+  geom_density_ridges(jittered_points=TRUE, scale = .95, rel_min_height = .01,
+                      point_shape = "|", point_size = 2, size = 0.1,
+                      position = position_points_jitter(height = 0)) +
+  # scale_fill_manual(values=c("tomato2", "salmon", "royalblue1", "royalblue4", "deepskyblue1"))+
+  theme_ridges(center = T)
+
+# Ridge plot for data subset by standard devistion
+plot_sd_subset <- sd_subset %>%
+  ggplot(aes(x = licorData, y = siteName, fill = paste(siteType,depth))) +
+  ggtitle("Plot Data Subset by SD")+
+  geom_density_ridges(jittered_points=TRUE, scale = .95, rel_min_height = .01,
+                      point_shape = "|", point_size = 2, size = 0.1,
+                      position = position_points_jitter(height = 0)) +
+  # scale_fill_manual(values=c("tomato2", "salmon", "royalblue1", "royalblue4", "deepskyblue1"))+
+  theme_ridges(center = T)
+
+# plot both side by side
+grid.arrange(plot_all_data, plot_sd_subset, ncol = 2)
+# Based on this, I feel like we shouldn't subset based on standard deviation. It doesn't solve our problem sites and it emphasizes differences in our good sites that maybe shouldn't exist
 
 # Subset for depths at each site?
 # 
