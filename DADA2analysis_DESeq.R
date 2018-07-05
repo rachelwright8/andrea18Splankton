@@ -38,12 +38,13 @@ colnames(sample_info)[8] <- "techRep"
 
 # Get rid of columns you don't need. Only keep SampleID, Site, Time, techRep, and siteType
 names(sample_info)
-sam_info <- sample_info %>% select(SampleID, Site, Time, techRep, siteType)
+sam_info <- sample_info %>% 
+            dplyr::select(SampleID, Site, Time, techRep, siteType)
 head(sam_info)
 
 # Load fastq files (sequencing samples) -------
 # Set path to unzipped, renamed fastq files
-path <- "Plankton_data/" # set the path to where the fastq files are. This may be an external harddrive. It dosn't have to be your working directory. It will look something like this... "/Volumes/ExtDrive/Folder1/"
+path <- "/Volumes/My_life/Plankton/Plankton_data/" # set the path to where the fastq files are. This may be an external harddrive. It dosn't have to be your working directory. It will look something like this... "/Volumes/ExtDrive/Folder1/"
 fns <- list.files(path)
 fns
 
@@ -71,12 +72,13 @@ plotQualityProfile(fnFs[c(74:77)])
 
 # Then look at quality profile of R2 reads
 plotQualityProfile(fnRs[c(1,2,3,4)])
-plotQualityProfile(fnFs[c(74:77)])
+plotQualityProfile(fnRs[c(74:77)])
 # Where do the base call qualities get lower than ~30? -----> ~200 bp in forward reads
 
 
 # The reverse reads are significantly worse quality, especially at the end, which is common in Illumina sequencing.
-# This isn’t too worrisome, DADA2 incorporates quality information into its error model which makes the algorithm more robust, but trimming as the average qualities crash is still a good idea as long as our reads will still overlap. 
+# This isn’t too worrisome, DADA2 incorporates quality information into its error model which makes the algorithm more robust, 
+# but trimming as the average qualities crash is still a good idea as long as our reads will still overlap. 
 
 # The distribution of quality scores at each position is shown as a grey-scale heat map, with dark colors corresponding to higher frequency. 
 # Green is the mean, orange is the median, and the dashed orange lines are the 25th and 75th quantiles.
@@ -111,7 +113,7 @@ mean(out_stats$perc_reads_remaining) # we only lost 20% of the reads
 sum(out_stats)
 
 # Save the out file
-# save(out, file="outData.RData")
+save(out, file="outData.RData")
 
 # A word on Expected Errors vs a blanket quality threshold
 # Take a simple example: a read of length two with quality scores Q3 and Q40, corresponding to error probabilities P=0.5 and P=0.0001. The base with Q3 is much more likely to have an error than the base with Q40 (0.5/0.0001 = 5,000 times more likely), so we can ignore the Q40 base to a good approximation. Consider a large sample of reads with (Q3, Q40), then approximately half of them will have an error (because of the P=0.5 from the Q2 base). We express this by saying that the expected number of errors in a read with quality scores (Q3, Q40) is 0.5.
