@@ -4,3 +4,5 @@ https://www.arb-silva.de/browser/
 Remove the accession nr from the Silva fasta file
 
 sed -e 's/\(>\).*\(Eukaryota\)/\1\2/'
+
+.... all of the other stuff we tried is on the lab computer. Still not working...
