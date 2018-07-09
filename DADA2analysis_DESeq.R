@@ -2,12 +2,11 @@ setwd("~/Desktop/andreas18ssequencing/")
 
 # DOWNLOADING (installing) packages
 # YOU ONLY HAVE TO execute just once when first using a script:
-# source("https://bioconductor.org/biocLite.R")
-# biocLite("labdsv")
-# biocLite("dada2")
-# biocLite('phyloseq')
-# install.packages("tidyverse")
-# install.packages("ShortRead")
+source("https://bioconductor.org/biocLite.R")
+biocLite("labdsv")
+biocLite("dada2")
+biocLite('phyloseq')
+biocLite('ShortRead')
 
 
 # Load the libraries you need (DO THIS EVERY TIME YOU OPEN A SCRIPT)
@@ -158,7 +157,9 @@ names(derepRs) <- sample.names
 
 # Infer Sequence Variants ----
 
-# Must change some of the DADA options b/c original program optomized for ribosomal data, not ITS - from github, "We currently recommend BAND_SIZE=32 for ITS data." leave as default for 16S/18S
+# Must change some of the DADA options b/c original program optomized for ribosomal data, not ITS - from github, 
+#"We currently recommend BAND_SIZE=32 for ITS data." leave as default for 16S/18S
+#takes a long time
 
 setDadaOpt(BAND_SIZE=32)
 
@@ -259,11 +260,12 @@ head(tracklost)
 
 
 # It is common at this point, especially in 16S/18S/ITS amplicon sequencing, to classify sequence variants taxonomically. 
-# DADA2 provides a native implementation of the RDP's naive Bayesian classifier. The assignTaxonomy function takes a set of sequences and a training set of taxonomically classified sequences, and outputs the taxonomic assignments with at least minBoot bootstrap confidence.
+# DADA2 provides a native implementation of the RDP's naive Bayesian classifier. 
+# The assignTaxonomy function takes a set of sequences and a training set of taxonomically classified sequences, and outputs 
+# the taxonomic assignments with at least minBoot bootstrap confidence.
 # Here, I have supplied a modified version of the GeoSymbio ITS2 database (Franklin et al. 2012)
-#
- 
-taxa <- assignTaxonomy(seqtab.nochim, "~/Dropbox/AIMSpostdoc/KateMontiSpawnExpt/MontiAllFastq/Training/GeoSymbio_ITS2_LocalDatabase_verForPhyloseq.fasta", minBoot=5,multithread=TRUE,tryRC=TRUE,outputBootstraps=FALSE)
+
+taxa <- assignTaxonomy(seqtab.nochim, "/Users/swdavies/Desktop/18sfasta", minBoot=5,multithread=TRUE,tryRC=TRUE,outputBootstraps=FALSE)
 unname(head(taxa, 30))
 unname(taxa)
 
