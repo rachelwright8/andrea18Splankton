@@ -25,7 +25,7 @@ summary(sample_info$Site)
 # Make a vector called `inshore_sites` that lists all of the inshore sites
 inshore_sites <- c("PuntaDonato", "STRIPoint", "Cristobal", "PuntaLaurel")
 
-#Make a new column called `siteType` that (as a factor) enters the text "inshore" if the site name is contained in the vector `inshore_sites` and enters the text "offshore" if it isn't
+# Make a new column called `siteType` that (as a factor) enters the text "inshore" if the site name is contained in the vector `inshore_sites` and enters the text "offshore" if it isn't
 sample_info$siteType <- as.factor(ifelse(sample_info$Site %in% inshore_sites, "inshore","offshore"))
 
 # Check to make sure it did what you wanted to do
@@ -43,7 +43,7 @@ head(sam_info)
 
 # Load fastq files (sequencing samples) -------
 # Set path to unzipped, renamed fastq files
-path <- "/Volumes/My_life/Plankton/Plankton_data/" # set the path to where the fastq files are. This may be an external harddrive. It dosn't have to be your working directory. It will look something like this... "/Volumes/ExtDrive/Folder1/"
+path <- "Plankton_data/" # set the path to where the fastq files are. This may be an external harddrive. It dosn't have to be your working directory. It will look something like this... "/Volumes/ExtDrive/Folder1/"
 fns <- list.files(path)
 fns
 
@@ -111,8 +111,16 @@ out_stats <- as.data.frame(out) %>% mutate(perc_reads_remaining = reads.out/read
 mean(out_stats$perc_reads_remaining) # we only lost 20% of the reads
 sum(out_stats)
 
+<<<<<<< HEAD
+# Save the out file 
+save(sam_info, out, out_stats, filtFs, filtRs, sample.names, file="outData.RData")
+
+# Load the out file -------
+load("outData.RData")
+=======
 # Save the out file
 save(out, out_stats, sam_info, filtFs, filtRs, sample.names, file="outDataandrea.RData")
+>>>>>>> 62bc97d149e5e89c8a667619ffe019577097e976
 
 # A word on Expected Errors vs a blanket quality threshold
 # Take a simple example: a read of length two with quality scores Q3 and Q40, corresponding to error probabilities P=0.5 and P=0.0001. The base with Q3 is much more likely to have an error than the base with Q40 (0.5/0.0001 = 5,000 times more likely), so we can ignore the Q40 base to a good approximation. Consider a large sample of reads with (Q3, Q40), then approximately half of them will have an error (because of the P=0.5 from the Q2 base). We express this by saying that the expected number of errors in a read with quality scores (Q3, Q40) is 0.5.
@@ -135,8 +143,8 @@ errR <- learnErrors(filtRs, multithread=TRUE)
 #black line is estimated error rate after convergence
 #dots are observed error rate for each quality score
 
-plotErrors(errF, nominalQ=TRUE) #some issues with C2G and G2C variants being underestimated, but not terrible
-plotErrors(errR, nominalQ=TRUE) #again, worse with G2C and C2G; a little T2G, but rest err on the side of being conservative (above red line)
+plotErrors(errF, nominalQ=TRUE)
+plotErrors(errR, nominalQ=TRUE)
 
 #why do values increase at Q40 in some plots?
 #this artefact exists b/c in many sequencing runs there are almost no Q=40 bases. The loess smoothing hits the edge and a lack of observations, causing weird behavior. BUT as there essentially aren't (almost) any Q=40 bases to correct anyway and at the worst, the error rates are overestimated, so it's actually conservative for calling new variants
