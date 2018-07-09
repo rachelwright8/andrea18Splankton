@@ -112,11 +112,16 @@ out_stats <- as.data.frame(out) %>% mutate(perc_reads_remaining = reads.out/read
 mean(out_stats$perc_reads_remaining) # we only lost 20% of the reads
 sum(out_stats)
 
+<<<<<<< HEAD
 # Save the out file 
 save(sam_info, out, out_stats, filtFs, filtRs, sample.names, file="outData.RData")
 
 # Load the out file -------
 load("outData.RData")
+=======
+# Save the out file
+save(out, out_stats, sam_info, filtFs, filtRs, sample.names, file="outDataandrea.RData")
+>>>>>>> 62bc97d149e5e89c8a667619ffe019577097e976
 
 # A word on Expected Errors vs a blanket quality threshold
 # Take a simple example: a read of length two with quality scores Q3 and Q40, corresponding to error probabilities P=0.5 and P=0.0001. The base with Q3 is much more likely to have an error than the base with Q40 (0.5/0.0001 = 5,000 times more likely), so we can ignore the Q40 base to a good approximation. Consider a large sample of reads with (Q3, Q40), then approximately half of them will have an error (because of the P=0.5 from the Q2 base). We express this by saying that the expected number of errors in a read with quality scores (Q3, Q40) is 0.5.
@@ -172,8 +177,8 @@ dadaRs <- dada(derepRs, err=errR, multithread=TRUE)
 # will tell how many 'real' variants in unique input seqs
 # By default, the dada function processes each sample independently, but pooled processing is available with pool=TRUE and that may give better results for low sampling depths at the cost of increased computation time. See our discussion about pooling samples for sample inference. 
 
-dadaFs[[109]]
-dadaRs[[109]]
+dadaFs[[70]]
+dadaRs[[70]]
 
 
 # Merge paired reads -----
@@ -187,8 +192,8 @@ mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs, verbose=TRUE)
 
 # Inspect the merger data.frame from the first sample
 
-head(mergers[[119]])
-summary((mergers[[119]]))
+head(mergers[[70]])
+summary((mergers[[70]]))
 
 # We now have a data.frame for each sample with the merged $sequence, its $abundance, and the indices of the merged $forward and $reverse denoised sequences. Paired reads that did not exactly overlap were removed by mergePairs.
 
@@ -202,14 +207,15 @@ dim(seqtab)
 # Inspect distribution of sequence lengths
 table(nchar(getSequences(seqtab)))
 
-plot(table(nchar(getSequences(seqtab)))) #real variants appear to be right in that 294-304 window
+plot(table(nchar(getSequences(seqtab))), xlab="BP", ylab="abundance", main="Histogram of sequence lengths") #real variants appear to be right in that 294-304 window
 
 # The sequence table is a matrix with rows corresponding to (and named by) the samples, and 
 # columns corresponding to (and named by) the sequence variants. 
 # Do merged sequences all fall in the expected range for amplicons? ITS2 Pochon ~340bp-41bp primers; accept 294-304
 # Sequences that are much longer or shorter than expected may be the result of non-specific priming, and may be worth removing
 
-seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% seq(294,304)] #again, being fairly conservative wrt length
+seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% seq(365 ,386)] #again, being fairly conservative wrt length
+#check 365 386 numbers during lab meeting----
 
 table(nchar(getSequences(seqtab2)))
 dim(seqtab2)
@@ -238,11 +244,24 @@ track <- cbind(out, sapply(dadaFs, getN), sapply(mergers, getN), rowSums(seqtab2
 colnames(track) <- c("input", "filtered", "denoised", "merged", "tabled", "nonchim")
 rownames(track) <- sample.names
 head(track)
-tail(track) #again, 2016 much better than 2015
+tail(track) 
 
-write.csv(track,file="ReadFilterStats_AllData_21Sep17.csv",row.names=TRUE,quote=FALSE)
+write.csv(track,file="final_sequence.csv",row.names=TRUE,quote=FALSE)
 
+tracklost <- as.data.frame(track) %>% 
+  mutate(remaining_afterfilter = nonchim/input*100)
+mean(tracklost$remaining_afterfilter) 
+# lost 61% of reads
 
+tracklostind <- as.data.frame(track) %>% 
+ mutate(remaining_filtered = filtered/input*100) %>% # lost 20% of reads
+ mutate(remaining_denoised = denoised/filtered*100) %>% # lost 0% of reads
+ mutate(remaining_merged = merged/denoised*100) %>% # lost 49% of reads
+ mutate(remaining_tabled = tabled/merged*100) %>% # lost <1% of reads
+ mutate(remaining_nonchim = nonchim/tabled*100) # lost <1% of reads
+mean(tracklostind$remaining_nonchim) 
+
+head(tracklost)
 
 # Assign Taxonomy ----
 
