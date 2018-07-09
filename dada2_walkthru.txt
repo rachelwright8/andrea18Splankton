@@ -1,0 +1,6 @@
+Download reference 18S fasta file from Silva
+https://www.arb-silva.de/browser/
+
+Remove the accession nr from the Silva fasta file
+
+sed -e 's/\(>\).*\(Eukaryota\)/\1\2/'
