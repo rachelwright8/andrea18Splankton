@@ -270,37 +270,36 @@ head(tracklost)
 # the taxonomic assignments with at least minBoot bootstrap confidence.
 # Here, I have supplied a modified version of the GeoSymbio ITS2 database (Franklin et al. 2012)
 
-taxa <- assignTaxonomy(seqtab.nochim, "/Users/swdavies/Desktop/silva_nr_v132_train_set.fa", minBoot=5,multithread=TRUE,tryRC=TRUE,outputBootstraps=FALSE)
-unname(head(taxa, 30))
-unname(taxa)
+taxa <- assignTaxonomy(seqtab.nochim, "silva_nr_v132_train_set.fa", 
+                       minBoot = 5,
+                       multithread = TRUE,
+                       tryRC = TRUE,
+                       outputBootstraps = FALSE)
+summary(taxa)
 
-# Lowered bootstrap threshold from 50 to 5. Was not returning hits for many sequences. But reducing to 5 improved sequence return and identities largely match separate blastn search against the same database
+# All Eukaryotes!!!
+# Most class = diatoms
 
-# Now, save outputs so can come back to the analysis stage at a later point if desired
-saveRDS(seqtab.nochim, file="plankton_seqtab_nochim.rds")
-saveRDS(taxa, file="plankton_taxa_blastCorrected.rds")
-
-# If you need to read in previously saved datafiles
-seqtab.nochim <- readRDS("/Volumes/My_life/Plankton/Plankton/plankton_seqtab_nochim.rds")
-taxa <- readRDS("/Volumes/My_life/Plankton/Plankton/plankton_taxa_blastCorrected.rds")
-
-
-# handoff 2 phyloseq ------
-
-#import dataframe holding sample information
-rownames(sam_info) <- sam_info$SampleID
-head(sam_info)
-
-# do the sample names in sam_info match seqtab.nochim?
+# Tidy up before saving
+# Right now the rownames of the sample variable table (sam_info) and the OTU table (seqtab.nochim) don't match
 rownames(seqtab.nochim)
+rownames(sam_info) <- sam_info$SampleID
 rownames(sam_info)
-# NOPE
 
+# Make them match
 rownames(seqtab.nochim) <- sub("-",".",rownames(seqtab.nochim))
 rownames(seqtab.nochim)
 
 identical(sort(rownames(seqtab.nochim)),sort(rownames(sam_info)))
 # they match now!
+
+# END DADA2 (save) and START PHYLOSEQ (load) ------
+# save(sam_info, seqtab.nochim, taxa, file = "dada2_output.Rdata")
+
+load("dada2_output.Rdata") # loads sam_info (variables table) 
+                          # and seqtab.nochim (OTU table)
+                          # and taxa (taxonomy assignments)
+
 
 # Construct phyloseq object (straightforward from dada2 outputs)
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
@@ -309,12 +308,40 @@ ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE),
 
 ps
 
-# replace sequences with shorter names (correspondence table output below)
-head(taxa_names(ps))
-ids
-# taxa_names(ps) <- ids
-#line doesnt work
 
+# Let's look at what we have for phyloseq
+otu_table(ps)[1:5, 1:5]
+# yikes, nasty column names. Change that.
+
+ids <- paste0("OTU", seq(1, length(colnames(seqtab.nochim))))
+head(ids)
+colnames(seqtab.nochim) <- ids
+head(seqtab.nochim)[2,]
+
+# Replace taxa names in the phyloseq object
+taxa_names(ps) <- ids
+
+# Try again...
+otu_table(ps)[1:5, 1:5]
+# Much better! Rows = samples. Columns = OTUs. Abundances (counts) fill the cells.
+
+# What are the sample varaibles in our 'ps' object?
+sample_variables(ps)
+# "SampleID" "Site"     "Time"     "techRep"  "siteType"
+
+# What taxonomic ranks do we have?
+rank_names(ps)
+# "Kingdom" "Phylum"  "Class"   "Order"   "Family"  "Genus"  
+
+# How many samples do we have?
+nsamples(ps)
+# 77, correct
+
+# What does the taxonomic table look like?
+tax_table(ps)[1:5, 1:6]
+# Each OTU is associated with six levels of taxonomy (KPCOFG --- no species)
+
+# Start stats ----
 
 # Visualize alpha-diversity - ***Should be done on raw, untrimmed dataset**
 # total species diversity in a landscape (gamma diversity) is determined by two different things, the mean species diversity in sites or habitats at a more local scale (alpha diversity) and the differentiation among those habitats (beta diversity)
@@ -322,11 +349,28 @@ ids
 # Shannon:Shannon entropy quantifies the uncertainty (entropy or degree of surprise) associated with correctly predicting which letter will be the next in a diverse string. Based on the weighted geometric mean of the proportional abundances of the types, and equals the logarithm of true diversity. When all types in the dataset of interest are equally common, the Shannon index hence takes the value ln(actual # of types). The more unequal the abundances of the types, the smaller the corresponding Shannon entropy. If practically all abundance is concentrated to one type, and the other types are very rare (even if there are many of them), Shannon entropy approaches zero. When there is only one type in the dataset, Shannon entropy exactly equals zero (there is no uncertainty in predicting the type of the next randomly chosen entity).
 
 # Simpson:equals the probability that two entities taken at random from the dataset of interest represent the same type. equal to the weighted arithmetic mean of the proportional abundances pi of the types of interest, with the proportional abundances themselves being used as the weights. Since mean proportional abundance of the types increases with decreasing number of types and increasing abundance of the most abundant type, λ obtains small values in datasets of high diversity and large values in datasets of low diversity. This is counterintuitive behavior for a diversity index, so often such transformations of λ that increase with increasing diversity have been used instead. The most popular of such indices have been the inverse Simpson index (1/λ) and the Gini–Simpson index.
-?plot_richness
-plot_richness(ps, x="Site", measures=c("Shannon", "Simpson"), color="siteType") + theme_bw()
+
+# plot Shannon and Simpson Diveristy by Site, color by Site Type (inshore vs. offshore)
+plot_richness(ps, 
+              x="Site", 
+              measures=c("Shannon", "Simpson"), 
+              color="siteType") +
+              geom_jitter()+
+              theme_bw()
+
+# plot Shannon and Simpson Diveristy by Site Type
+plot_richness(ps, 
+              x="siteType", 
+              measures=c("Shannon", "Simpson"), 
+              color="siteType") + 
+              geom_jitter()+
+              theme_bw()
+
+
 
 # Ordinate Samples
 ord.nmds.bray <- ordinate(ps, method="NMDS", distance="bray",k=20)
+
 # *** No convergence -- monoMDS stopping criteria:
 # ^^^^^^^^ NMDS bray doesn't converge...
 
@@ -335,151 +379,103 @@ ord.nmds.bray <- ordinate(ps, method="NMDS", distance="bray",k=20)
 # The top 30 most abundant OTUs
 
 top30 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:30]
-ps.top30 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+ps.top30 <- transform_sample_counts(ps, function(x) x/sum(x))
 ps.top30 <- prune_taxa(top30, ps.top30)
-plot_bar(ps.top30, x="Site", fill="Class") + facet_wrap(~siteType, scales="free_y") + theme_bw()
 
+plot_bar(ps.top30, x="Site", fill="Class") + 
+  facet_wrap(~siteType, scales="free_y") + 
+  theme_bw()
 
 btm30 <- names(sort(taxa_sums(ps), decreasing=FALSE))[1:30]
 ps.btm30 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
 ps.btm30 <- prune_taxa(btm30, ps.btm30)
-plot_bar(ps.btm30, x="Site", fill="Phylum") + facet_wrap(~siteType, scales="free_x") +theme_bw()
 
-# Mess around with other stuff in phyloseq here...
+plot_bar(ps.btm30, x="Site", fill="Phylum") + 
+  facet_wrap(~siteType, scales="free_x") +
+  theme_bw()
 
-# output 'OTU' table----
-# seqtab.nochim is the 'OTU' table...but is a little unwieldy
-# want fasta file of 'OTUs' and table designated by 'OTU'
+# Save
+# save(sam_info, seqtab.nochim, taxa, ps, file="startHere4PCoA.Rdata")
 
-# Ignore for now... might have been Symbiodinium-specific thing...
-# First, output fasta file for 'OTUs'
-# path <- '~/Dropbox/AIMSpostdoc/KateMontiSpawnExpt/Sep21_OTUs_All.fasta'
-# uniquesToFasta(seqtab.nochim, path, ids = NULL, mode = "w", width = 20000)
-
-# then, rename output table and write it out
-ids <- paste0("OTU", seq(1, length(colnames(seqtab.nochim))))
-head(ids)
-colnames(seqtab.nochim) <- ids
-head(seqtab.nochim)[2,]
-
-write.csv(seqtab.nochim,file="July10_OutputDADA_AllOTUs.csv",quote=F)
-
-str(seqtab.nochim)
-
-# if you want to focus on a certain group of samples
-# subset data
-# focus = subset_samples(ps, Focus== "Yes")
-# seqtab<-otu_table(focus)
-# ids <- paste0("OTU", seq(1, length(colnames(seqtab))))
-# colnames(seqtab)<-ids
-# head(seqtab)
-# write.csv(seqtab,file="Sep21_OutputDADA_AllOTUs_FocusYesOnly.csv",quote=F)
-
-
-# Principal coordinate analysis ----
+# START HERE FOR Principal coordinate analysis ----
 library(vegan)
 library(MCMC.OTU)
-library(ggfortify)
+# library(ggfortify)
 library(cluster)
 library(labdsv)
+library(tidyverse)
+
+# Load in data
+load("startHere4PCoA.Rdata")
 
 # Read in data 
-alldat <- read.csv("July10_OutputDADA_AllOTUs.csv")
+alldat <- as.data.frame(seqtab.nochim)
+summary(alldat)[,1:4]
+
 # names are OTUs
 names(alldat)
 str(alldat)
 
-# head(alldat) #Note: 2015-M11r11 has no read data left. Must remove from dataset or zero.cut eval will fail below
-# dat<-alldat[c(1:3,5:110),] #remove r11
+alldat$sample <- row.names(alldat)
 
 # purging under-sequenced samples; 
 # and OTUs represented in less than 3% of all samples
-?purgeOutliers
 
 goods <- purgeOutliers(alldat,
-                        count.columns = 2:1527,
-                        otu.cut = 0.001,
-                        zero.cut = 0.03)
+                        count.columns = c(1:ncol(alldat)-1),
+                        otu.cut = 0,
+                        zero.cut = 0.01)
 
-# goods2<-dat
+summary(goods)[,1:6]
+summary(goods)[,730:736]
+
 # creating a log-transfromed normalized dataset for PCoA:
-goods.log=logLin(data=goods2,count.columns=5:length(names(goods2)))
+goods.log <- logLin(data = goods,
+                    count.columns = 2:length(names(goods)))
+summary(goods.log)[,1:6]
 
 # computing Manhattan distances (sum of all log-fold-changes) and performing PCoA:
-goods.dist=vegdist(goods.log,method="manhattan")
-goods.pcoa=pcoa(goods.dist)
+goods.dist <- vegdist(goods.log, method = "manhattan")
+goods.pcoa <- pcoa(goods.dist)
 
+# make conditions
+table(sam_info$SampleID %in% goods$cdat)
 
-# plotting by Type:
-scores=goods.pcoa$vectors
-conditions=goods2[,1:4]
-margin=0.01
-quartz()
-plot(scores[,1], scores[,2],type="n",
-	xlim=c(min(scores[,1])-margin,max(scores[,1])+margin),
+conditions <- sam_info %>%
+  filter(SampleID %in% goods$cdat)
+
+table(conditions$SampleID %in% goods$cdat)
+head(conditions)
+
+# plotting by type:
+scores <- goods.pcoa$vectors
+margin <- 0.01
+
+# play around with these numbers
+xaxis <- 1
+yaxis <- 2
+
+plot(scores[,xaxis], scores[,2],type="n",
+	xlim=c(min(scores[,xaxis])-margin,max(scores[,xaxis])+margin),
 	ylim=c(min(scores[,2])-margin,max(scores[,2])+margin),
 	mgp=c(2.3,1,0),
-	xlab=paste("Axis1 (",round(goods.pcoa$values$Relative_eig[1]*100,1),"%)",sep=""),
-	ylab=paste("Axis2 (",round(goods.pcoa$values$Relative_eig[2]*100,1),"%)",sep=""),
-	main="Life Stage")
-points(scores[conditions$type=="adult",1],scores[conditions$type=="adult",2])
-points(scores[conditions$type=="larvae",1],scores[conditions$type=="larvae",2],pch=19)
-legend("bottomright", c("Adult","Larvae"), pch=c(1, 19), cex=0.8)
-
-# plotting by year:
-margin=0.01
-conditions=goods2[,1:4]
-plot(scores[,1], scores[,2],type="n",
-	xlim=c(min(scores[,1])-margin,max(scores[,1])+margin),
-	ylim=c(min(scores[,2])-margin,max(scores[,2])+margin),
-	mgp=c(2.3,1,0),
-	xlab=paste("Axis1 (",round(goods.pcoa$values$Relative_eig[1]*100,1),"%)",sep=""),
-	ylab=paste("Axis2 (",round(goods.pcoa$values$Relative_eig[2]*100,1),"%)",sep=""),
-	main="Year")
-points(scores[conditions$year=="yr2015",1],scores[conditions$year=="yr2015",2])
-points(scores[conditions$year=="yr2016",1],scores[conditions$year=="yr2016",2],pch=19)
-legend("bottomright", c("2015","2016"), pch=c(1, 19), cex=0.8)
-
-# plotting by family:
-margin=0.01
-conditions=goods2[,1:4]
-plot(scores[,1], scores[,2],type="n",
-	xlim=c(min(scores[,1])-margin,max(scores[,1])+margin),
-	ylim=c(min(scores[,2])-margin,max(scores[,2])+margin),
-	mgp=c(2.3,1,0),
-	xlab=paste("Axis1 (",round(goods.pcoa$values$Relative_eig[1]*100,1),"%)",sep=""),
-	ylab=paste("Axis2 (",round(goods.pcoa$values$Relative_eig[2]*100,1),"%)",sep=""),
-	main="PCoA colored by Family")
-points(scores[conditions$family=="M11",1],scores[conditions$family=="M11",2],pch=0)
-points(scores[conditions$family=="M24",1],scores[conditions$family=="M24",2],pch=1)
-points(scores[conditions$family=="M7",1],scores[conditions$family=="M7",2],pch=2)
-points(scores[conditions$family=="M9",1],scores[conditions$family=="M9",2],pch=5)
-
-legend("bottomright", c("M11","M24","M7","M9"), pch=c(0, 1,2,5), cex=0.8)
+	xlab=paste("Axis", xaxis,"(", round(goods.pcoa$values$Relative_eig[xaxis]*100,1),"%)",sep=""),
+	ylab=paste("Axis", yaxis,"(", round(goods.pcoa$values$Relative_eig[yaxis]*100,1),"%)",sep=""),
+	main="Site Type")
+points(scores[conditions$siteType=="inshore",xaxis],scores[conditions$siteType=="inshore",yaxis])
+points(scores[conditions$siteType=="offshore",xaxis],scores[conditions$siteType=="offshore",yaxis],pch=19)
+legend("bottomright", c("inshore","offshore"), pch=c(1, 19), cex=0.5, bty = "n")
 
 
-unname(taxa)
 
+# STOP HERE ------
 
-# exploring correlations between OTUs ------
-
-goods=purgeOutliers(dat,count.columns=5:93,otu.cut=0.003,zero.cut=0.06) #just to reduce number represented in scatter plot; could also do subsets of interesting majority types
-
-# creating a log-transformed normalized dataset ignoring zero counts:
-nl=startedLog(data=goods,count.columns=5:length(names(goods)),logstart=0)
-
-
-# displaying a matrix of scatterplots and p-values of OTU correlations
-# (onlu p-values better than 0.1 are displayed)
-pairs(nl,lower.panel=panel.smooth,upper.panel=panel.cor.pval) 
-#what's interesting here is that all these supposed C15 variants are not really positively correlated...1 and 7 and 2 and 4 are
-#but 1 and 2 appear to be different cells rather than intragenomic variants
 
 
 # DESeq for Stats-------
 # load deseq
 
-library("DESeq"); packageVersion("DESeq")
+library("DESeq")
 library(genefilter)
 
 # load in OTU table
