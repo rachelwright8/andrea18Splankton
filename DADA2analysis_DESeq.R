@@ -400,7 +400,7 @@ plot_bar(ps.btm30, x="Site", fill="Phylum") +
 # START HERE FOR Principal coordinate analysis ----
 library(vegan)
 library(MCMC.OTU)
-# library(ggfortify)
+ library(ggfortify)
 library(cluster)
 library(labdsv)
 library(tidyverse)
@@ -461,13 +461,15 @@ plot(scores[,xaxis], scores[,2],type="n",
 	mgp=c(2.3,1,0),
 	xlab=paste("Axis", xaxis,"(", round(goods.pcoa$values$Relative_eig[xaxis]*100,1),"%)",sep=""),
 	ylab=paste("Axis", yaxis,"(", round(goods.pcoa$values$Relative_eig[yaxis]*100,1),"%)",sep=""),
-	main="Site Type")
-points(scores[conditions$siteType=="inshore",xaxis],scores[conditions$siteType=="inshore",yaxis])
-points(scores[conditions$siteType=="offshore",xaxis],scores[conditions$siteType=="offshore",yaxis],pch=19)
+	main="Site Type") 
+points(scores[conditions$siteType=="offshore",xaxis],scores[conditions$siteType=="offshore",yaxis], pch=5, col = "royalblue4")
+points(scores[conditions$siteType=="inshore",xaxis],scores[conditions$siteType=="inshore",yaxis], pch=15,, col = "salmon")
 legend("bottomright", c("inshore","offshore"), pch=c(1, 19), cex=0.5, bty = "n")
 
 
-
+scale_color_manual(values=c("salmon", "royalblue4")) +
+  geom_point(size = 5) +
+  scale_shape_manual(values=c(15,1,5,19,17))+
 # STOP HERE ------
 
 
