@@ -2,12 +2,11 @@ setwd("~/Desktop/andreas18ssequencing/")
 
 # DOWNLOADING (installing) packages
 # YOU ONLY HAVE TO execute just once when first using a script:
-source("https://bioconductor.org/biocLite.R")
-biocLite("labdsv")
-biocLite("dada2")
-biocLite('phyloseq')
-biocLite('ShortRead')
-
+# source("https://bioconductor.org/biocLite.R")
+# biocLite("labdsv")
+# biocLite("dada2")
+# biocLite('phyloseq')
+# biocLite('ShortRead')
 
 # Load the libraries you need (DO THIS EVERY TIME YOU OPEN A SCRIPT)
 library(labdsv)  # this loads MASS, which conflicts with the "select" function in dplyr(tidyverse). Load tidyverse last.
@@ -111,16 +110,14 @@ out_stats <- as.data.frame(out) %>% mutate(perc_reads_remaining = reads.out/read
 mean(out_stats$perc_reads_remaining) # we only lost 20% of the reads
 sum(out_stats)
 
-<<<<<<< HEAD
 # Save the out file 
 save(sam_info, out, out_stats, filtFs, filtRs, sample.names, file="outData.RData")
 
 # Load the out file -------
 load("outData.RData")
-=======
+
 # Save the out file
 save(out, out_stats, sam_info, filtFs, filtRs, sample.names, file="outDataandrea.RData")
->>>>>>> 62bc97d149e5e89c8a667619ffe019577097e976
 
 # A word on Expected Errors vs a blanket quality threshold
 # Take a simple example: a read of length two with quality scores Q3 and Q40, corresponding to error probabilities P=0.5 and P=0.0001. The base with Q3 is much more likely to have an error than the base with Q40 (0.5/0.0001 = 5,000 times more likely), so we can ignore the Q40 base to a good approximation. Consider a large sample of reads with (Q3, Q40), then approximately half of them will have an error (because of the P=0.5 from the Q2 base). We express this by saying that the expected number of errors in a read with quality scores (Q3, Q40) is 0.5.
@@ -273,122 +270,137 @@ head(tracklost)
 # the taxonomic assignments with at least minBoot bootstrap confidence.
 # Here, I have supplied a modified version of the GeoSymbio ITS2 database (Franklin et al. 2012)
 
-taxa <- assignTaxonomy(seqtab.nochim, "/Users/swdavies/Desktop/18sfasta", minBoot=5,multithread=TRUE,tryRC=TRUE,outputBootstraps=FALSE)
+taxa <- assignTaxonomy(seqtab.nochim, "/Users/swdavies/Desktop/silva_nr_v132_train_set.fa", minBoot=5,multithread=TRUE,tryRC=TRUE,outputBootstraps=FALSE)
 unname(head(taxa, 30))
 unname(taxa)
 
 # Lowered bootstrap threshold from 50 to 5. Was not returning hits for many sequences. But reducing to 5 improved sequence return and identities largely match separate blastn search against the same database
 
 # Now, save outputs so can come back to the analysis stage at a later point if desired
-saveRDS(seqtab.nochim, file="21Sep_seqtab_nochim.rds")
-saveRDS(taxa, file="21_Sep_taxa_blastCorrected.rds")
+saveRDS(seqtab.nochim, file="plankton_seqtab_nochim.rds")
+saveRDS(taxa, file="plankton_taxa_blastCorrected.rds")
 
 # If you need to read in previously saved datafiles
-seqtab.nochim <- readRDS("/Users/drcarl/Dropbox/AIMSpostdoc/KateMontiSpawnExpt/21Sep_seqtab_nochim.rds")
-taxa <- readRDS("/Users/drcarl/Dropbox/AIMSpostdoc/KateMontiSpawnExpt/21_Sep_taxa_blastCorrected.rds")
-
-# back in terminal, run blast against Symbio database to compare
-# makeblastdb -in GeoSymbio_ITS2_LocalDatabase.fasta -dbtype nucl
-# blastn -query Sep21_OTUs_All.fasta -db /Users/drcarl/Dropbox/AIMSpostdoc/KateMontiSpawnExpt/MontiAllFastq/Training/GeoSymbio_ITS2_LocalDatabase_verForPhyloseq.fasta -num_descriptions 5 -num_alignments 5 -out NODES_All.br
-# grep -A 12 'Query=' NODES_All.br
+seqtab.nochim <- readRDS("/Volumes/My_life/Plankton/Plankton/plankton_seqtab_nochim.rds")
+taxa <- readRDS("/Volumes/My_life/Plankton/Plankton/plankton_taxa_blastCorrected.rds")
 
 
 # handoff 2 phyloseq ------
 
 #import dataframe holding sample information
-samdf<-read.csv("monti2yrs_VARIABLESTable_forphyloseq.csv")
-head(samdf)
-rownames(samdf) <- samdf$Samplename
+rownames(sam_info) <- sam_info$SampleID
+head(sam_info)
+
+# do the sample names in sam_info match seqtab.nochim?
+rownames(seqtab.nochim)
+rownames(sam_info)
+# NOPE
+
+rownames(seqtab.nochim) <- sub("-",".",rownames(seqtab.nochim))
+rownames(seqtab.nochim)
+
+identical(sort(rownames(seqtab.nochim)),sort(rownames(sam_info)))
+# they match now!
 
 # Construct phyloseq object (straightforward from dada2 outputs)
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
-               sample_data(samdf), 
+               sample_data(sam_info), 
                tax_table(taxa))
 
 ps
 
 # replace sequences with shorter names (correspondence table output below)
-taxa_names(ps)<-ids
+head(taxa_names(ps))
+ids
+# taxa_names(ps) <- ids
+#line doesnt work
 
 
-
-# Visualize alpha-diversity - ***Should be done on raw, untrimmed dataset***
+# Visualize alpha-diversity - ***Should be done on raw, untrimmed dataset**
 # total species diversity in a landscape (gamma diversity) is determined by two different things, the mean species diversity in sites or habitats at a more local scale (alpha diversity) and the differentiation among those habitats (beta diversity)
 
 # Shannon:Shannon entropy quantifies the uncertainty (entropy or degree of surprise) associated with correctly predicting which letter will be the next in a diverse string. Based on the weighted geometric mean of the proportional abundances of the types, and equals the logarithm of true diversity. When all types in the dataset of interest are equally common, the Shannon index hence takes the value ln(actual # of types). The more unequal the abundances of the types, the smaller the corresponding Shannon entropy. If practically all abundance is concentrated to one type, and the other types are very rare (even if there are many of them), Shannon entropy approaches zero. When there is only one type in the dataset, Shannon entropy exactly equals zero (there is no uncertainty in predicting the type of the next randomly chosen entity).
 
 # Simpson:equals the probability that two entities taken at random from the dataset of interest represent the same type. equal to the weighted arithmetic mean of the proportional abundances pi of the types of interest, with the proportional abundances themselves being used as the weights. Since mean proportional abundance of the types increases with decreasing number of types and increasing abundance of the most abundant type, λ obtains small values in datasets of high diversity and large values in datasets of low diversity. This is counterintuitive behavior for a diversity index, so often such transformations of λ that increase with increasing diversity have been used instead. The most popular of such indices have been the inverse Simpson index (1/λ) and the Gini–Simpson index.
-
-plot_richness(ps, x="ColonyID", measures=c("Shannon", "Simpson"), color="Type") + theme_bw()
+?plot_richness
+plot_richness(ps, x="Site", measures=c("Shannon", "Simpson"), color="siteType") + theme_bw()
 
 # Ordinate Samples
 ord.nmds.bray <- ordinate(ps, method="NMDS", distance="bray",k=20)
-
-# NMDS bray doesn't converge...
+# *** No convergence -- monoMDS stopping criteria:
+# ^^^^^^^^ NMDS bray doesn't converge...
 
 # Bar-plots
+
+# The top 30 most abundant OTUs
 
 top30 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:30]
 ps.top30 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
 ps.top30 <- prune_taxa(top30, ps.top30)
-plot_bar(ps.top30, x="Type", fill="Class") + facet_wrap(~ColonyID+Timepoint, scales="free_x")
+plot_bar(ps.top30, x="Site", fill="Class") + facet_wrap(~siteType, scales="free_y") + theme_bw()
+
 
 btm30 <- names(sort(taxa_sums(ps), decreasing=FALSE))[1:30]
 ps.btm30 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
 ps.btm30 <- prune_taxa(btm30, ps.btm30)
-plot_bar(ps.btm30, x="Type", fill="Class") + facet_wrap(~ColonyID+Timepoint, scales="free_x")
-
+plot_bar(ps.btm30, x="Site", fill="Phylum") + facet_wrap(~siteType, scales="free_x") +theme_bw()
 
 # Mess around with other stuff in phyloseq here...
 
-
-
 # output 'OTU' table----
-
 # seqtab.nochim is the 'OTU' table...but is a little unwieldy
-# For Symbiodinium, sequence classification is not so great...
 # want fasta file of 'OTUs' and table designated by 'OTU'
 
+# Ignore for now... might have been Symbiodinium-specific thing...
 # First, output fasta file for 'OTUs'
-
-path='~/Dropbox/AIMSpostdoc/KateMontiSpawnExpt/Sep21_OTUs_All.fasta'
-uniquesToFasta(seqtab.nochim, path, ids = NULL, mode = "w", width = 20000)
+# path <- '~/Dropbox/AIMSpostdoc/KateMontiSpawnExpt/Sep21_OTUs_All.fasta'
+# uniquesToFasta(seqtab.nochim, path, ids = NULL, mode = "w", width = 20000)
 
 # then, rename output table and write it out
-ids <- paste0("sq", seq(1, length(colnames(seqtab.nochim))))
-colnames(seqtab.nochim)<-ids
+ids <- paste0("OTU", seq(1, length(colnames(seqtab.nochim))))
+head(ids)
+colnames(seqtab.nochim) <- ids
+head(seqtab.nochim)[2,]
 
-write.csv(seqtab.nochim,file="Sep21_OutputDADA_AllOTUs.csv",quote=F)
+write.csv(seqtab.nochim,file="July10_OutputDADA_AllOTUs.csv",quote=F)
 
 str(seqtab.nochim)
 
-# For our purposes, we also want to focus on the corals used in both 2015 and 2016
+# if you want to focus on a certain group of samples
 # subset data
-focus = subset_samples(ps, Focus== "Yes")
-seqtab<-otu_table(focus)
-ids <- paste0("sq", seq(1, length(colnames(seqtab))))
-colnames(seqtab)<-ids
-head(seqtab)
-write.csv(seqtab,file="Sep21_OutputDADA_AllOTUs_FocusYesOnly.csv",quote=F)
+# focus = subset_samples(ps, Focus== "Yes")
+# seqtab<-otu_table(focus)
+# ids <- paste0("OTU", seq(1, length(colnames(seqtab))))
+# colnames(seqtab)<-ids
+# head(seqtab)
+# write.csv(seqtab,file="Sep21_OutputDADA_AllOTUs_FocusYesOnly.csv",quote=F)
 
 
 # Principal coordinate analysis ----
-
 library(vegan)
 library(MCMC.OTU)
 library(ggfortify)
 library(cluster)
 library(labdsv)
 
-alldat<-read.csv("Sep21_OutputDADA_AllOTUs_FocusYesOnly_forMCMC.csv")
+# Read in data 
+alldat <- read.csv("July10_OutputDADA_AllOTUs.csv")
+# names are OTUs
 names(alldat)
 str(alldat)
-head(alldat) #Note: 2015-M11r11 has no read data left. Must remove from dataset or zero.cut eval will fail below
-dat<-alldat[c(1:3,5:110),] #remove r11
 
+# head(alldat) #Note: 2015-M11r11 has no read data left. Must remove from dataset or zero.cut eval will fail below
+# dat<-alldat[c(1:3,5:110),] #remove r11
 
-# purging under-sequenced samples; and OTUs represented in less than 3% of all samples (~must occur at least 3 separate times)
-goods2=purgeOutliers(dat,count.columns=5:93,otu.cut=0,zero.cut=0.027) #also 2 recruit samples removed for having too little read data
+# purging under-sequenced samples; 
+# and OTUs represented in less than 3% of all samples
+?purgeOutliers
+
+goods <- purgeOutliers(alldat,
+                        count.columns = 2:1527,
+                        otu.cut = 0.001,
+                        zero.cut = 0.03)
+
 # goods2<-dat
 # creating a log-transfromed normalized dataset for PCoA:
 goods.log=logLin(data=goods2,count.columns=5:length(names(goods2)))
