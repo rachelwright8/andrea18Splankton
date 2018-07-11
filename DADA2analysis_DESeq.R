@@ -402,13 +402,15 @@ plot_bar(ps.btm30, x="Site", fill="Phylum") +
 # START HERE FOR Principal coordinate analysis ----
 library(vegan)
 library(MCMC.OTU)
-# library(ggfortify)
+library(ggfortify)
 library(cluster)
 library(labdsv)
 library(tidyverse)
 
 # Load in data
 load("startHere4PCoA.Rdata")
+
+# DIFFERENCE BY SITE (REMOVE STRI TIMEPOINTS) -------
 
 # Read in data 
 alldat <- as.data.frame(seqtab.nochim)
@@ -418,12 +420,23 @@ summary(alldat)[,1:4]
 names(alldat)
 str(alldat)
 
-alldat$sample <- row.names(alldat)
+alldat$sample <- as.factor(row.names(alldat))
+summary(alldat)[,(ncol(alldat)-4):ncol(alldat)]
+
+# subset alldat for samples in "mid" only (no early or late day collections because they are all from STRI) 
+summary(sam_info)
+
+midday_samples <- sam_info %>%
+  filter(Time=="Mid")
+summary(midday_samples)
+
+alldat.mid <- alldat %>%
+  filter(sample %in% midday_samples$SampleID)
 
 # purging under-sequenced samples; 
 # and OTUs represented in less than 3% of all samples
 
-goods <- purgeOutliers(alldat,
+goods <- purgeOutliers(alldat.mid,
                         count.columns = c(1:ncol(alldat)-1),
                         otu.cut = 0,
                         zero.cut = 0.01)
@@ -453,21 +466,73 @@ head(conditions)
 scores <- goods.pcoa$vectors
 margin <- 0.01
 
+
 # play around with these numbers
 xaxis <- 1
 yaxis <- 2
 
 plot(scores[,xaxis], scores[,2],type="n",
-	xlim=c(min(scores[,xaxis])-margin,max(scores[,xaxis])+margin),
-	ylim=c(min(scores[,2])-margin,max(scores[,2])+margin),
-	mgp=c(2.3,1,0),
-	xlab=paste("Axis", xaxis,"(", round(goods.pcoa$values$Relative_eig[xaxis]*100,1),"%)",sep=""),
-	ylab=paste("Axis", yaxis,"(", round(goods.pcoa$values$Relative_eig[yaxis]*100,1),"%)",sep=""),
-	main="PCoA by Site Type")
-points(scores[conditions$siteType=="inshore",xaxis],scores[conditions$siteType=="inshore",yaxis], col = "salmon", pch = 19)
-points(scores[conditions$siteType=="offshore",xaxis],scores[conditions$siteType=="offshore",yaxis],pch=19, col = "royalblue1")
-legend("bottomright", c("inshore","offshore"), pch=c(19, 19), col=c("salmon","royalblue1"), cex=0.5)
+     xlim=c(min(scores[,xaxis])-margin,max(scores[,xaxis])+margin),
+     ylim=c(min(scores[,2])-margin,max(scores[,2])+margin),
+     mgp=c(2.3,1,0),
+     xlab=paste("Axis", xaxis,"(", round(goods.pcoa$values$Relative_eig[xaxis]*100,1),"%)",sep=""),
+     ylab=paste("Axis", yaxis,"(", round(goods.pcoa$values$Relative_eig[yaxis]*100,1),"%)",sep=""),
+     main="PCoA by Site Type") +
+# inshore sites
+  points(scores[conditions$Site=="PuntaDonato",xaxis],scores[conditions$Site=="PuntaDonato",yaxis], col="salmon", pch=19) +
+  points(scores[conditions$Site=="STRIPoint",xaxis],scores[conditions$Site=="STRIPoint",yaxis], col="salmon", pch=17) +  
+  points(scores[conditions$Site=="Cristobal",xaxis],scores[conditions$Site=="Cristobal",yaxis], col="salmon", pch=15) +
+  points(scores[conditions$Site=="PuntaLaurel",xaxis],scores[conditions$Site=="PuntaLaurel",yaxis], col="salmon", pch=18) 
+# offshore sites
+  points(scores[conditions$Site=="DragoMar",xaxis],scores[conditions$Site=="DragoMar",yaxis], col="royalblue4", pch=1) +
+  points(scores[conditions$Site=="BastimentosN",xaxis],scores[conditions$Site=="BastimentosN",yaxis], col="royalblue4", pch=2) +
+  points(scores[conditions$Site=="BastimentosS",xaxis],scores[conditions$Site=="BastimentosS",yaxis], col="royalblue4", pch=0) +
+  points(scores[conditions$Site=="PopaIsland",xaxis],scores[conditions$Site=="PopaIsland",yaxis], col="royalblue4", pch=5)
+  ordihull(scores,conditions$siteType,label=T, draw = "polygon", col = c("salmon", "royalblue4", alpha = 255))
+  legend("bottomright", c("PuntaDonato","DragoMar","STRIPoint","BastimentosN","Cristobal","BastimentosS","PuntaLaurel","PopaIsland"), pch=c(19,1,17,2,15,0,18,5), col=c("salmon","royalblue4"), cex=0.5, bty = "n")
+  
+# MCMC OTU analysis on site type midday only -----
+  
+# reformat data for mcmc.otu
 
+goods.mcmc <- merge(goods,conditions, by = 1)
+names(goods.mcmc)[c(1224:1228)]
+names(goods.mcmc)[1] <- "sample"
+  
+# stacking the data table
+gs <- otuStack(
+    goods.mcmc,
+    count.columns = c(2:1224),
+    condition.columns = c(1,1225:1228)
+  )
+
+# fitting the model
+mm <- mcmc.otu(
+  fixed = "siteType",
+  data = gs
+)
+
+summary(mm)
+
+# selecting the OTUs that were modeled reliably
+acpass <- otuByAutocorr(mm,gs)
+
+# calculating effect sizes and p-values:
+ss <- OTUsummary(mm,gs,summ.plot=FALSE)
+
+# correcting for mutliple comparisons (FDR)
+ss <- padjustOTU(ss)
+
+# getting significatly changing OTUs (FDR<0.05)
+sigs <- signifOTU(ss)
+
+# plotting them
+ss2 <- OTUsummary(mm,gs,otus=sigs)
+
+# bar-whiskers graph of relative changes:
+# ssr=OTUsummary(mm,gs,otus=signifOTU(ss),relative=TRUE)
+# displaying effect sizes and p-values for significant OTUs
+ss$otuWise[sigs]
 
 
 # STOP HERE ------
