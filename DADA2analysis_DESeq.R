@@ -356,6 +356,7 @@ plot_richness(ps,
               measures=c("Shannon", "Simpson"), 
               color="siteType") +
               geom_jitter()+
+              scale_color_manual(values=c("salmon","royalblue1"))+
               theme_bw()
 
 # plot Shannon and Simpson Diveristy by Site Type
@@ -364,6 +365,7 @@ plot_richness(ps,
               measures=c("Shannon", "Simpson"), 
               color="siteType") + 
               geom_jitter()+
+              scale_color_manual(values=c("salmon","royalblue1"))+
               theme_bw()
 
 
@@ -461,10 +463,10 @@ plot(scores[,xaxis], scores[,2],type="n",
 	mgp=c(2.3,1,0),
 	xlab=paste("Axis", xaxis,"(", round(goods.pcoa$values$Relative_eig[xaxis]*100,1),"%)",sep=""),
 	ylab=paste("Axis", yaxis,"(", round(goods.pcoa$values$Relative_eig[yaxis]*100,1),"%)",sep=""),
-	main="Site Type")
-points(scores[conditions$siteType=="inshore",xaxis],scores[conditions$siteType=="inshore",yaxis])
-points(scores[conditions$siteType=="offshore",xaxis],scores[conditions$siteType=="offshore",yaxis],pch=19)
-legend("bottomright", c("inshore","offshore"), pch=c(1, 19), cex=0.5, bty = "n")
+	main="PCoA by Site Type")
+points(scores[conditions$siteType=="inshore",xaxis],scores[conditions$siteType=="inshore",yaxis], col = "salmon", pch = 19)
+points(scores[conditions$siteType=="offshore",xaxis],scores[conditions$siteType=="offshore",yaxis],pch=19, col = "royalblue1")
+legend("bottomright", c("inshore","offshore"), pch=c(19, 19), col=c("salmon","royalblue1"), cex=0.5)
 
 
 
