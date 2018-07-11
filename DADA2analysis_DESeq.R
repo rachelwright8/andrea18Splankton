@@ -400,7 +400,7 @@ plot_bar(ps.btm30, x="Site", fill="Phylum") +
 # START HERE FOR Principal coordinate analysis ----
 library(vegan)
 library(MCMC.OTU)
- library(ggfortify)
+library(ggfortify)
 library(cluster)
 library(labdsv)
 library(tidyverse)
@@ -461,15 +461,19 @@ plot(scores[,xaxis], scores[,2],type="n",
 	mgp=c(2.3,1,0),
 	xlab=paste("Axis", xaxis,"(", round(goods.pcoa$values$Relative_eig[xaxis]*100,1),"%)",sep=""),
 	ylab=paste("Axis", yaxis,"(", round(goods.pcoa$values$Relative_eig[yaxis]*100,1),"%)",sep=""),
-	main="Site Type") 
-points(scores[conditions$siteType=="offshore",xaxis],scores[conditions$siteType=="offshore",yaxis], pch=5, col = "royalblue4")
-points(scores[conditions$siteType=="inshore",xaxis],scores[conditions$siteType=="inshore",yaxis], pch=15,, col = "salmon")
-legend("bottomright", c("inshore","offshore"), pch=c(1, 19), cex=0.5, bty = "n")
+	main="Site Type")  
+# inshore sites
+  points(scores[conditions$Site=="PuntaDonato",xaxis],scores[conditions$Site=="PuntaDonato",yaxis], col="salmon", pch=19) +
+  points(scores[conditions$Site=="STRIPoint",xaxis],scores[conditions$Site=="STRIPoint",yaxis], col="salmon", pch=17) +  
+  points(scores[conditions$Site=="Cristobal",xaxis],scores[conditions$Site=="Cristobal",yaxis], col="salmon", pch=15) +
+  points(scores[conditions$Site=="PuntaLaurel",xaxis],scores[conditions$Site=="PuntaLaurel",yaxis], col="salmon", pch=18) 
+# offshore sites
+  points(scores[conditions$Site=="DragoMar",xaxis],scores[conditions$Site=="DragoMar",yaxis], col="royalblue4", pch=1) +
+  points(scores[conditions$Site=="BastimentosN",xaxis],scores[conditions$Site=="BastimentosN",yaxis], col="royalblue4", pch=2) +
+  points(scores[conditions$Site=="BastimentosS",xaxis],scores[conditions$Site=="BastimentosS",yaxis], col="royalblue4", pch=0) +
+  points(scores[conditions$Site=="PopaIsland",xaxis],scores[conditions$Site=="PopaIsland",yaxis], col="royalblue4", pch=5)
+legend("bottomright", c("PuntaDonato","DragoMar","STRIPoint","BastimentosN","Cristobal","BastimentosS","PuntaLaurel","PopaIsland"), pch=c(19,1,17,2,15,0,18,5), col=c("salmon","royalblue4"), cex=0.5, bty = "n")
 
-
-scale_color_manual(values=c("salmon", "royalblue4")) +
-  geom_point(size = 5) +
-  scale_shape_manual(values=c(15,1,5,19,17))+
 # STOP HERE ------
 
 
