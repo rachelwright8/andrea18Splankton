@@ -278,7 +278,7 @@ taxa <- assignTaxonomy(seqtab.nochim, "silva_nr_v132_train_set.fa",
 summary(taxa)
 
 # All Eukaryotes!!!
-# Most class = diatoms
+# Most class = Maxillopoda
 
 # Tidy up before saving
 # Right now the rownames of the sample variable table (sam_info) and the OTU table (seqtab.nochim) don't match
@@ -300,6 +300,21 @@ load("dada2_output.Rdata") # loads sam_info (variables table)
                           # and seqtab.nochim (OTU table)
                           # and taxa (taxonomy assignments)
 
+# Make OTU - sequence - taxa table for later
+colnames(seqtab.nochim)[c(1:3)]
+colnames(taxa)[c(1:10)]
+rownames(taxa)[c(1)]
+
+seqtab.trans <- as.data.frame(t(seqtab.nochim))
+head(seqtab.trans)
+
+# create short OTU IDs
+seqtab.trans$ids <- paste0("OTU", seq(1, length(colnames(seqtab.nochim))))
+head(seqtab.trans)
+
+# merge with taxa
+otu_taxa_seq <- merge(seqtab.trans, taxa, by = 0)
+
 
 # Construct phyloseq object (straightforward from dada2 outputs)
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
@@ -313,8 +328,7 @@ ps
 otu_table(ps)[1:5, 1:5]
 # yikes, nasty column names. Change that.
 
-ids <- paste0("OTU", seq(1, length(colnames(seqtab.nochim))))
-head(ids)
+
 colnames(seqtab.nochim) <- ids
 head(seqtab.nochim)[2,]
 
@@ -397,7 +411,7 @@ plot_bar(ps.btm30, x="Site", fill="Phylum") +
   theme_bw()
 
 # Save
-# save(sam_info, seqtab.nochim, taxa, ps, file="startHere4PCoA.Rdata")
+# save(sam_info, seqtab.nochim, taxa, ps, otu_taxa_seq, file="startHere4PCoA.Rdata")
 
 # START HERE FOR Principal coordinate analysis ----
 library(vegan)
@@ -539,7 +553,6 @@ ss2 <- OTUsummary(mm,gs,otus=sigs)
 ssr=OTUsummary(mm,gs,otus=signifOTU(ss),relative=TRUE)
 # displaying effect sizes and p-values for significant OTUs
 ss$otuWise[sigs]
-
 
 # STOP HERE ------
 
