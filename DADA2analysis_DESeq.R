@@ -426,23 +426,23 @@ summary(alldat)[,(ncol(alldat)-4):ncol(alldat)]
 # subset alldat for samples in "mid" only (no early or late day collections because they are all from STRI) 
 summary(sam_info)
 
-midday_samples <- sam_info %>%
+Mid_samples <- sam_info %>%
   filter(Time=="Mid")
-summary(midday_samples)
+summary(Mid_samples)
 
-alldat.mid <- alldat %>%
-  filter(sample %in% midday_samples$SampleID)
+alldat.Mid <- alldat %>%
+  filter(sample %in% Mid_samples$SampleID)
 
 # purging under-sequenced samples; 
 # and OTUs represented in less than 3% of all samples
 
-goods <- purgeOutliers(alldat.mid,
+goods <- purgeOutliers(alldat.Mid,
                         count.columns = c(1:ncol(alldat)-1),
-                        otu.cut = 0,
+                        otu.cut = 0.00001,
                         zero.cut = 0.01)
 
 summary(goods)[,1:6]
-summary(goods)[,730:736]
+summary(goods)[,495:499]
 
 # creating a log-transfromed normalized dataset for PCoA:
 goods.log <- logLin(data = goods,
@@ -477,34 +477,39 @@ plot(scores[,xaxis], scores[,2],type="n",
      mgp=c(2.3,1,0),
      xlab=paste("Axis", xaxis,"(", round(goods.pcoa$values$Relative_eig[xaxis]*100,1),"%)",sep=""),
      ylab=paste("Axis", yaxis,"(", round(goods.pcoa$values$Relative_eig[yaxis]*100,1),"%)",sep=""),
-     main="PCoA by Site Type") +
+     main="PCoA by STRI Time Points") +
+ #STRIPoint by time of day 
+  points(scores[conditions$Time=="Early",xaxis],scores[conditions$Time=="Early",yaxis], col="red", pch=19) +
+  points(scores[conditions$Time=="Mid",xaxis],scores[conditions$Time=="Mid",yaxis], col="purple", pch=17) +
+  points(scores[conditions$Time=="Late",xaxis],scores[conditions$Time=="Late",yaxis], col="green", pch=15) 
+  
+  
 # inshore sites
-  points(scores[conditions$Site=="PuntaDonato",xaxis],scores[conditions$Site=="PuntaDonato",yaxis], col="salmon", pch=19) +
-  points(scores[conditions$Site=="STRIPoint",xaxis],scores[conditions$Site=="STRIPoint",yaxis], col="salmon", pch=17) +  
-  points(scores[conditions$Site=="Cristobal",xaxis],scores[conditions$Site=="Cristobal",yaxis], col="salmon", pch=15) +
-  points(scores[conditions$Site=="PuntaLaurel",xaxis],scores[conditions$Site=="PuntaLaurel",yaxis], col="salmon", pch=18) 
+ # points(scores[conditions$Site=="PuntaDonato",xaxis],scores[conditions$Site=="PuntaDonato",yaxis], col="salmon", pch=19) +
+ # points(scores[conditions$Site=="STRIPoint",xaxis],scores[conditions$Site=="STRIPoint",yaxis], col="salmon", pch=17) +  
+ # points(scores[conditions$Site=="Cristobal",xaxis],scores[conditions$Site=="Cristobal",yaxis], col="salmon", pch=15) +
+ # points(scores[conditions$Site=="PuntaLaurel",xaxis],scores[conditions$Site=="PuntaLaurel",yaxis], col="salmon", pch=18) 
 # offshore sites
-  points(scores[conditions$Site=="DragoMar",xaxis],scores[conditions$Site=="DragoMar",yaxis], col="royalblue4", pch=1) +
-  points(scores[conditions$Site=="BastimentosN",xaxis],scores[conditions$Site=="BastimentosN",yaxis], col="royalblue4", pch=2) +
-  points(scores[conditions$Site=="BastimentosS",xaxis],scores[conditions$Site=="BastimentosS",yaxis], col="royalblue4", pch=0) +
-  points(scores[conditions$Site=="PopaIsland",xaxis],scores[conditions$Site=="PopaIsland",yaxis], col="royalblue4", pch=5)
-  ordihull(scores,conditions$siteType,label=T, draw = "polygon", col = c("salmon", "royalblue4", alpha = 255))
+ # points(scores[conditions$Site=="DragoMar",xaxis],scores[conditions$Site=="DragoMar",yaxis], col="royalblue4", pch=1) +
+ # points(scores[conditions$Site=="BastimentosN",xaxis],scores[conditions$Site=="BastimentosN",yaxis], col="royalblue4", pch=2) +
+ # points(scores[conditions$Site=="BastimentosS",xaxis],scores[conditions$Site=="BastimentosS",yaxis], col="royalblue4", pch=0) +
+ # points(scores[conditions$Site=="PopaIsland",xaxis],scores[conditions$Site=="PopaIsland",yaxis], col="royalblue4", pch=5)
+  ordihull(scores,conditions$Time,label=T, draw = "polygon", col = c("red", "green","purple", alpha = 255))
   legend("bottomright", c("PuntaDonato","DragoMar","STRIPoint","BastimentosN","Cristobal","BastimentosS","PuntaLaurel","PopaIsland"), pch=c(19,1,17,2,15,0,18,5), col=c("salmon","royalblue4"), cex=0.5, bty = "n")
   
 # MCMC OTU analysis on site type midday only -----
   
 # reformat data for mcmc.otu
-
 goods.mcmc <- merge(goods,conditions, by = 1)
-names(goods.mcmc)[c(1224:1228)]
+names(goods.mcmc)[c(1:3)]
+names(goods.mcmc)[c(499:503)]
 names(goods.mcmc)[1] <- "sample"
-  
+
 # stacking the data table
-gs <- otuStack(
-    goods.mcmc,
-    count.columns = c(2:1224),
-    condition.columns = c(1,1225:1228)
-  )
+gs <- otuStack(goods.mcmc,
+    count.columns=c(2:(ncol(goods.mcmc)-4)),
+    condition.columns = c(1,500:503))
+head(gs)
 
 # fitting the model
 mm <- mcmc.otu(
@@ -524,13 +529,14 @@ ss <- OTUsummary(mm,gs,summ.plot=FALSE)
 ss <- padjustOTU(ss)
 
 # getting significatly changing OTUs (FDR<0.05)
-sigs <- signifOTU(ss)
+sigs <- signifOTU(ss, p.cutoff = 0.005)
 
 # plotting them
+quartz()
 ss2 <- OTUsummary(mm,gs,otus=sigs)
 
 # bar-whiskers graph of relative changes:
-# ssr=OTUsummary(mm,gs,otus=signifOTU(ss),relative=TRUE)
+ssr=OTUsummary(mm,gs,otus=signifOTU(ss),relative=TRUE)
 # displaying effect sizes and p-values for significant OTUs
 ss$otuWise[sigs]
 

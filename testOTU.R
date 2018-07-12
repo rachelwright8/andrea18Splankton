@@ -27,6 +27,7 @@ sigs=signifOTU(ss)
 # plotting them
 ss2=OTUsummary(mm,gs,otus=sigs)
 # bar-whiskers graph of relative changes:
-# ssr=OTUsummary(mm,gs,otus=signifOTU(ss),relative=TRUE)
+ssr=OTUsummary(mm,gs,otus=signifOTU(ss),relative=TRUE)
 # displaying effect sizes and p-values for significant OTUs
 ss$otuWise[sigs]
+
