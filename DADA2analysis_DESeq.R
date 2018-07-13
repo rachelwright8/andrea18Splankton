@@ -314,7 +314,7 @@ head(seqtab.trans)
 
 # merge with taxa
 otu_taxa_seq <- merge(seqtab.trans, taxa, by = 0)
-
+otu_taxa <- select(otu_taxa_seq, "Order", "ids")
 
 # Construct phyloseq object (straightforward from dada2 outputs)
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
@@ -518,7 +518,7 @@ goods.mcmc <- merge(goods,conditions, by = 1)
 names(goods.mcmc)[c(1:3)]
 names(goods.mcmc)[c(499:503)]
 names(goods.mcmc)[1] <- "sample"
-
+goods.mcmc_taxa <- merge(goods.mcmc,otu_taxa, by= "ids")
 # stacking the data table
 gs <- otuStack(goods.mcmc,
     count.columns=c(2:(ncol(goods.mcmc)-4)),
@@ -535,6 +535,7 @@ summary(mm)
 
 # selecting the OTUs that were modeled reliably
 acpass <- otuByAutocorr(mm,gs)
+head(acpass)
 
 # calculating effect sizes and p-values:
 ss <- OTUsummary(mm,gs,summ.plot=FALSE)
@@ -543,13 +544,16 @@ ss <- OTUsummary(mm,gs,summ.plot=FALSE)
 ss <- padjustOTU(ss)
 
 # getting significatly changing OTUs (FDR<0.05)
-sigs <- signifOTU(ss, p.cutoff = 0.005)
+sigs <- signifOTU(ss, p.cutoff = 0.00005)
 
 # plotting them
 quartz()
-ss2 <- OTUsummary(mm,gs,otus=sigs)
-
+ss2 <- OTUsummary(mm,gs_order,otus=sigs)
+#wont let me edit the plot----
+ss2 + labs(x= "sitetype", y="propotion") 
+ss2
 # bar-whiskers graph of relative changes:
+gs_order <- merge(gs, otu_taxa, by= 2)
 ssr=OTUsummary(mm,gs,otus=signifOTU(ss),relative=TRUE)
 # displaying effect sizes and p-values for significant OTUs
 ss$otuWise[sigs]
