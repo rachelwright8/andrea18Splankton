@@ -476,7 +476,7 @@ conditions <- sam_info %>%
 table(conditions$SampleID %in% goods$cdat)
 head(conditions)
 
-# plotting by type:
+# plotting by type----
 scores <- goods.pcoa$vectors
 margin <- 0.01
 
@@ -560,7 +560,21 @@ ss$otuWise[sigs]
 
 # STOP HERE ------
 
+#heat map atempt----
+install.packages("pheatmap")
+library("pheatmap")
 
+goodswitch <- data.frame(t(goods[-1])) # make this smaller, include only most sig OTUs
+# example, make list of sig otus
+# sigOTUs <- c("OTU1", "OTU1")
+# goodswitch_sig <- goodswitch[row.names(goodswitch) %in% sigOTUs]
+colnames(goodswitch) <- goods[, 1]
+heat.colors = colorRampPalette(rev(c("salmon","white","royalblue4")),bias=1)(100)
+quartz()
+pheatmap(as.matrix(goodswitch[10:20,]),
+         scale= "column", cex=0.9,
+         color = heat.colors, border_color=NA,
+         clustering_distance_rows="correlation", cluster_cols=T)
 
 # DESeq for Stats-------
 # load deseq
